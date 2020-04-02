@@ -3,6 +3,7 @@ import argparse
 import glob
 from pathlib import Path
 from cbs import CBSSolver
+from improved_cbs import ICBSSolver
 from visualize import Animation
 from single_agent_planner import get_sum_of_cost
 
@@ -93,6 +94,10 @@ if __name__ == '__main__':
             print("***Run CBS***")
             cbs = CBSSolver(my_map, starts, goals)
             paths = cbs.find_solution(args.disjoint)
+        elif args.solver == "ICBS":
+            print("***Run Improved CBS***")
+            icbs = ICBSSolver(my_map, starts, goals)
+            paths = icbs.find_solution(args.disjoint)
         elif args.solver == "Independent":
             print("***Run Independent***")
             solver = IndependentSolver(my_map, starts, goals)
