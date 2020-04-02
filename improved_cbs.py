@@ -75,6 +75,7 @@ def build_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
     open_list = []
     closed_list = dict()
     constraint_table = build_constraint_table(constraints, agent)
+    paths = []
 
     root = {'loc': start_loc, 'g_val': 0, 'parent': None, 'timestep': 0}
     push(open_list, root)
@@ -88,7 +89,7 @@ def build_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
             if res:
                 pass
             else:
-                return get_path(curr)
+                paths.append(get_path(curr))
 
         for dir in range(5):
             child_loc = move(curr['loc'], dir)
@@ -116,7 +117,10 @@ def build_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
                 closed_list[(child['loc'], child['timestep'])] = child
                 push(open_list, child)
 
-    return None  # Failed to find solutions
+    if len(paths) > 0:
+        return {'agent': agent, 'paths': paths}
+    else:
+        return None  # Failed to find solutions
 
 def detect_cardinal_conflict(mdd1, mdd2):
     # Check MDDs for a cardinal conflict
@@ -291,6 +295,7 @@ class ICBSSolver(object):
             next_node = self.pop_node()
             # If N has no conflicts then return solution (N is goal)
             if len(next_node['collisions']) == 0:
+                self.print_results(next_node)
                 return next_node['paths']
             # Iterate over all collisions
             for conflict in next_node['collisions']:
