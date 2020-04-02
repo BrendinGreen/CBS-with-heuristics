@@ -1,7 +1,8 @@
 import time as timer
 import heapq
 import random
-import copy
+import queue
+import numpy
 from single_agent_planner import compute_heuristics, a_star, get_location, get_sum_of_cost
 
 
@@ -51,7 +52,7 @@ def detect_collisions(paths):
     return collisions
 
 
-def detect_cardinal_conflict(collisions):
+def detect_cardinal_conflict(collisions, map, num_agents, starts, goals):
     # Iterate over all collisions
 
         # Test each collision C = (a_i, a_j, D, t) for cardinality by building 
@@ -61,7 +62,91 @@ def detect_cardinal_conflict(collisions):
     # if it was encountered during the iteration
 
     # Otherwise, a non-cardinal conflict is arbitrarily chosen
-    return collisions[0] # Get first conflict
+
+    array_of_MDDs = []
+
+    for agent in range(num_agents):
+
+        node_queue = queue.Queue()
+
+        root = {'loc': starts[agent], 'timestep': 0, 'children': []}
+
+        node_queue.put(root)
+
+        visited = numpy.zeros((len(map), len(map[0])), dtype=bool)
+
+        visited[starts[agent][0]][starts[agent][1]] = True
+
+        found_goal_timestep = -1
+
+        print("AGENT {}:".format(agent))
+        while not node_queue.empty():
+
+            node = node_queue.get()
+
+            loc = node['loc']
+            timestep = node['timestep']
+
+            if found_goal_timestep > 0 and timestep >= found_goal_timestep:
+                print("GOAL FOUND at timestep: {}".format(found_goal_timestep))
+                break
+
+            for direction in range(3):
+                directions = [(0, -1), (1, 0), (0, 1), (-1, 0)]
+                new_loc = loc[0] + directions[direction][0], loc[1] + directions[direction][1]
+                new_timestep = timestep + 1
+
+
+                if map[new_loc[0]][new_loc[1]]:
+                    continue
+
+                new_node = {'loc': new_loc, 'timestep': new_timestep, 'children': []}
+
+                for collision in collisions:
+                    if collision['loc'] == new_loc and collision['timestep'] == new_timestep:
+                        continue
+
+                if not visited[new_loc[0]][new_loc[1]]:
+                    node_queue.put(new_node)
+
+                    node['children'].append(new_node)
+
+                    visited[new_loc[0]][new_loc[1]] = True
+
+                    if goals[agent] == new_node['loc']:
+                        found_goal_timestep = new_node['timestep']
+
+        mdd = print_paths_of_tree(root)
+
+        print_array(mdd)
+
+        array_of_MDDs.append(root)
+
+    return collisions[0]  # Get first conflict
+
+
+def print_paths_of_tree(root):
+
+    ret_list = []
+
+    if len(root['children']) == 0:
+        leaf_list = [root['loc']]
+        ret_list.append(leaf_list)
+    else:
+        for child in root['children']:
+            node_lists = print_paths_of_tree(child)
+            for node_list in node_lists:
+                node_list.append(root['loc'])
+                ret_list.append(node_list[::-1])
+
+    return ret_list
+
+
+def print_array(arr):
+    for i in arr:
+        print(i, " ")
+    print()
+
 
 def standard_splitting(collision):
     ##############################
@@ -207,11 +292,11 @@ class ICBSSolver(object):
         self.push_node(root)
 
         # Task 3.1: Testing
-        print(root['collisions'])
+        # print(root['collisions'])
 
         # Task 3.2: Testing
-        for collision in root['collisions']:
-            print(standard_splitting(collision))
+        # for collision in root['collisions']:
+        #     print(standard_splitting(collision))
 
         ##############################
         # Task 3.3: High-Level Search
@@ -229,7 +314,7 @@ class ICBSSolver(object):
             if len(next_node['collisions']) == 0:
                 return next_node['paths']
             # Otherwise, check for cardinal conflict
-            collision = detect_cardinal_conflict(next_node['collisions'])
+            collision = detect_cardinal_conflict(next_node['collisions'], self.my_map, self.num_of_agents, self.starts, self.goals)
             constraints = standard_splitting(collision)  # disjoint_splitting(collision)
 
             for constraint in constraints:
