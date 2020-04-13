@@ -83,23 +83,23 @@ def graph(g):
 ###################################################################################
 
 
-a = Vertex('A')
-b = Vertex('B')
-c = Vertex('C')
-d = Vertex('D')
-e = Vertex('E')
+a = Vertex('1')
+b = Vertex('2')
+c = Vertex('5')
+d = Vertex('6')
+e = Vertex('7')
 
-a.add_neighbors([b, c, e])
-b.add_neighbors([a, c])
-c.add_neighbors([b, d, a, e])
-d.add_neighbor(c)
-e.add_neighbors([a, c])
+a.add_neighbors([2])
+b.add_neighbors([1])
+c.add_neighbors([6, 7])
+d.add_neighbors([5, 7])
+e.add_neighbors([5, 6])
 
 
 g = Graph()
 print(graph(g))
 print("\n")
 g.add_vertices([a, b, c, d, e])
-g.add_edge(b, d)
+g.add_edges([(a, b), (e, d), (d, c), (c, e)])
 print("\n")
 print(graph(g))
