@@ -31,6 +31,7 @@ class Vertex:
 class Graph:
     def __init__(self):
         self.vertices = {}
+        self.edges = set()
 
     def add_vertex(self, vertex):
         if isinstance(vertex, Vertex):
@@ -47,16 +48,43 @@ class Graph:
             if isinstance(vertex_from, Vertex) and isinstance(vertex_to, Vertex):
                 self.vertices[vertex_from.name] = vertex_from.neighbors
                 self.vertices[vertex_to.name] = vertex_to.neighbors
+                self.edges.add(
+                    tuple(sorted([vertex_from.name, vertex_to.name])))
 
     def add_edges(self, edges):
         for edge in edges:
             self.add_edge(edge[0], edge[1])
+
+    def number_of_vertrices(self):
+        return len(self.vertices)
+
+    def number_of_edges(self):
+        return len(self.edges)
 
     def adjacencyList(self):
         if len(self.vertices) >= 1:
             return [str(key) + ":" + str(self.vertices[key]) for key in self.vertices.keys()]
         else:
             return dict()
+
+    def remove_vertex(self, vertex):
+        # remove neighbours
+        rm_list = []
+        for edge in self.edges:
+            if vertex.name == edge[0]:
+                rm_list.append(edge[1])
+            elif vertex.name == edge[1]:
+                rm_list.append(edge[0])
+        # remove edge
+        new_edge = {
+            edge for edge in self.edges if vertex.name not in (edge[0], edge[1])}
+        self.edges = new_edge
+
+        # remove vertex
+        if vertex.name in self.vertices:
+            del self.vertices[vertex.name]
+        for v in rm_list:
+            self.vertices[v].remove(vertex.name)
 
     def adjacencyMatrix(self):
         if len(self.vertices) >= 1:
@@ -101,5 +129,11 @@ print(graph(g))
 print("\n")
 g.add_vertices([a, b, c, d, e])
 g.add_edges([(a, b), (e, d), (d, c), (c, e)])
+print("#edge:", g.number_of_edges())
+print("#vertex:", g.number_of_vertrices())
+print("remove vertex 5")
+g.remove_vertex(c)
+print("#edge:", g.number_of_edges())
+print("#vertex:", g.number_of_vertrices())
 print("\n")
 print(graph(g))
