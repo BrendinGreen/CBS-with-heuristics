@@ -4,6 +4,12 @@ import random
 from single_agent_planner import *
 
 
+def get_agent_cost(paths):
+    rst = []
+    for path in paths:
+        rst.append(len(path) - 1)
+    return rst
+
 def detect_collision(path1, path2):
     ##############################
     # Task 3.1: Return the first collision that occurs between two robot paths (or None if there is no collision)
@@ -75,7 +81,8 @@ def build_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
     open_list = []
     closed_list = dict()
     constraint_table = build_constraint_table(constraints, agent)
-    paths = []
+    mdd = {}
+    count = 0
 
     root = {'loc': start_loc, 'g_val': 0, 'parent': None, 'timestep': 0}
     push(open_list, root)
@@ -89,7 +96,14 @@ def build_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
             if res:
                 pass
             else:
-                paths.append(get_path(curr))
+                path = get_path(curr)
+                count += 1
+                for i in range(len(path)):
+                    if i not in mdd:
+                        mdd[i] = [path[i]]
+                    else:
+                        if path[i] not in mdd[i]:
+                            mdd[i].append(path[i])
 
         for dir in range(5):
             child_loc = move(curr['loc'], dir)
@@ -117,8 +131,8 @@ def build_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
                 closed_list[(child['loc'], child['timestep'])] = child
                 push(open_list, child)
 
-    if len(paths) > 0:
-        return {'agent': agent, 'paths': paths}
+    if len(mdd) > 0:
+        return mdd
     else:
         return None  # Failed to find solutions
 
@@ -255,6 +269,7 @@ class ICBSSolver(object):
 
         # Initialize root with low-level paths for individual agents
         root = {'cost': 0,
+                'agent_cost': [],
                 'constraints': [],
                 'paths': [],
                 'collisions': []}
@@ -271,6 +286,7 @@ class ICBSSolver(object):
             root['paths'].append(path)
 
         root['cost'] = get_sum_of_cost(root['paths'])
+        root['agent_cost'] = get_agent_cost(root['paths'])
         root['collisions'] = detect_collisions(root['paths'])
         self.push_node(root)
 
@@ -300,11 +316,15 @@ class ICBSSolver(object):
             # Iterate over all collisions
             for conflict in next_node['collisions']:
                 # Build MDD for each agent
-                mdd1 = build_mdd(self.my_map, self.starts[conflict['a1']], self.goals[conflict['a1']], conflict['a1'], next_node['constraints'], next_node['cost'])
-                mdd2 = build_mdd(self.my_map, self.starts[conflict['a2']], self.goals[conflict['a2']], conflict['a2'], next_node['constraints'], next_node['cost'])
-                print("Constraints:", next_node['constraints'])
-                print('MDD1', mdd1)
-                print('MDD2', mdd2)
+                a1 = conflict['a1']
+                a2 = conflict['a2']
+                mdd1 = build_mdd(self.my_map, self.starts[a1], self.goals[a1], a1, next_node['constraints'], next_node['agent_cost'][a1])
+                mdd2 = build_mdd(self.my_map, self.starts[a2], self.goals[a2], a2, next_node['constraints'], next_node['agent_cost'][a2])
+                print('Agent:', a1)
+                print('MDD:', mdd1)
+                print()
+                print('Agent:', a2)
+                print('MDD:', mdd2)
                 print()
                 # Check for cardinal/semi-cardinal conflict
                 cardinal_conflict = detect_cardinal_conflict(mdd1, mdd2)
@@ -360,6 +380,7 @@ class ICBSSolver(object):
                     new_child_node['paths'][agent_in_constraint] = [] + path
                     new_child_node['collisions'] = detect_collisions(new_child_node['paths'])
                     new_child_node['cost'] = get_sum_of_cost(new_child_node['paths'])
+                    new_child_node['agent_cost'] = get_agent_cost(new_child_node['paths'])
                     self.push_node(new_child_node)
 
         self.print_results(root)
