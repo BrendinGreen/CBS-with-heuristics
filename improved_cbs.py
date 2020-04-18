@@ -56,85 +56,88 @@ def detect_collisions(paths):
     return collisions
 
 
-def build_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
+def a_star_mdd(my_map, start_loc, goal_loc, agent, depth):
     """ my_map      - binary obstacle map
         start_loc   - start position
         goal_loc    - goal position
         agent       - the agent that is being re-planned
-        depth       - cost of parent node N.cost
     """
+  
+    def get_move(loc, dir):
+        directions = [(0, -1), (1, 0), (0, 1), (-1, 0)]
+        return loc[0] + directions[dir][0], loc[1] + directions[dir][1]
+    
+    def manhattan_dist(node, goal):
+        """ Compute Manhattan distance """
+        x1 = node[0]
+        y1 = node[1]
+        x2 = goal[0]
+        y2 = goal[1]
 
-    def push(open_list, node):
-        heapq.heappush(open_list, (node['g_val'], node['loc'], node))
-
-    def pop(open_list):
-        _, _, curr = heapq.heappop(open_list)
-        return curr
-
-    def compare(n1, n2):
-        """Return true is n1 is better than n2."""
-        return n1['g_val'] < n2['g_val']
-
-    # Perform a breadth-first search from the start location of the agent down to depth and 
-    # only store the partial DAG which starts at start_loc and ends at goal_loc at depth
-
+        return abs(x1 - x2) + abs(y1 - y2)
+    
     open_list = []
     closed_list = dict()
-    constraint_table = build_constraint_table(constraints, agent)
-    mdd = {}
-    count = 0
+    graph = dict()
 
-    root = {'loc': start_loc, 'g_val': 0, 'parent': None, 'timestep': 0}
-    push(open_list, root)
+    h_value = manhattan_dist(start_loc, goal_loc)
+    root = {'loc': start_loc, 'g_val': 0, 'h_val': h_value, 'timestep': 0, 'parent': None}
+    graph[root['timestep']] = root['loc']
+    
+    push_node(open_list, root)
     closed_list[(root['loc'], root['timestep'])] = root
 
     while len(open_list) > 0:
-        curr = pop(open_list)
-        
-        if curr['loc'] == goal_loc:
-            res = [v for k, v in constraint_table.items() if k > curr['timestep']]
-            if res:
-                pass
-            else:
-                path = get_path(curr)
-                count += 1
-                for i in range(len(path)):
-                    if i not in mdd:
-                        mdd[i] = [path[i]]
-                    else:
-                        if path[i] not in mdd[i]:
-                            mdd[i].append(path[i])
+        curr = pop_node(open_list)
 
-        for dir in range(5):
-            child_loc = move(curr['loc'], dir)
+        if curr['loc'] == goal_loc:
+            return graph
+
+        for dir in range(4):
+            child_loc = get_move(curr['loc'], dir)
+            
             if (child_loc[0] >= len(my_map) or child_loc[0] == -1) or (child_loc[1] >= len(my_map[0]) or child_loc[1] == -1):
                 continue
+
             if my_map[child_loc[0]][child_loc[1]]:
                 continue
+            
             child = {'loc': child_loc,
                      'g_val': curr['g_val'] + 1,
+                     'h_val': manhattan_dist(child_loc, goal_loc),
                      'parent': curr,
                      'timestep': curr['timestep'] + 1}
-
-            if is_constrained(curr['loc'], child['loc'], child['timestep'], constraint_table):
-                continue
-
+            
             if child['g_val'] > depth:
                 continue
 
             if (child['loc'], child['timestep']) in closed_list:
                 existing_node = closed_list[(child['loc'], child['timestep'])]
-                if compare(child, existing_node):
+                if compare_nodes(child, existing_node):
                     closed_list[(child['loc'], child['timestep'])] = child
-                    push(open_list, child)
+                    push_node(open_list, child)
+
+                    if child['h_val'] <= curr['h_val']:
+                        graph.setdefault(child['timestep'], [])
+                        graph[child['timestep']].append(child['loc'])
             else:
                 closed_list[(child['loc'], child['timestep'])] = child
-                push(open_list, child)
+                push_node(open_list, child)
 
-    if len(mdd) > 0:
-        return mdd
-    else:
-        return None  # Failed to find solutions
+                if child['h_val'] <= curr['h_val']:
+                    graph.setdefault(child['timestep'], [])
+                    graph[child['timestep']].append(child['loc'])
+
+    return None
+
+
+def build_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
+    graph = a_star_mdd(my_map, start_loc, goal_loc, agent, depth)
+    print("Agent:", agent)
+    print("Graph:", graph)
+    print()
+    return graph
+
 
 def detect_cardinal_conflict(mdd1, mdd2):
     # Check MDDs for a cardinal conflict
@@ -290,12 +293,6 @@ class ICBSSolver(object):
         root['collisions'] = detect_collisions(root['paths'])
         self.push_node(root)
 
-        # # Task 3.1: Testing
-        # print(root['collisions'])
-
-        # # Task 3.2: Testing
-        # for collision in root['collisions']:
-        #     print(standard_splitting(collision))
 
         ##############################
         # Task 3.3: High-Level Search
@@ -320,12 +317,12 @@ class ICBSSolver(object):
                 a2 = conflict['a2']
                 mdd1 = build_mdd(self.my_map, self.starts[a1], self.goals[a1], a1, next_node['constraints'], next_node['agent_cost'][a1])
                 mdd2 = build_mdd(self.my_map, self.starts[a2], self.goals[a2], a2, next_node['constraints'], next_node['agent_cost'][a2])
-                print('Agent:', a1)
-                print('MDD:', mdd1)
-                print()
-                print('Agent:', a2)
-                print('MDD:', mdd2)
-                print()
+                # print('Agent:', a1)
+                # print('MDD:', mdd1)
+                # print()
+                # print('Agent:', a2)
+                # print('MDD:', mdd2)
+                # print()
                 # Check for cardinal/semi-cardinal conflict
                 cardinal_conflict = detect_cardinal_conflict(mdd1, mdd2)
             
@@ -340,32 +337,6 @@ class ICBSSolver(object):
                 new_child_node = dict()
                 new_child_node['constraints'] = [constraint] + next_node['constraints']
                 new_child_node['paths'] = [] + next_node['paths']
-
-                # if constraint['positive']:
-                #     agents_that_conflict = paths_violate_constraint(constraint, new_child_node['paths'])
-                #     paths = copy.deepcopy(new_child_node['paths'])
-                #     success = True
-                #     for agent in agents_that_conflict:
-                #         path = a_star(self.my_map,
-                #                       self.starts[agent],
-                #                       self.goals[agent],
-                #                       self.heuristics[agent],
-                #                       agent,
-                #                       new_child_node['constraints'])
-                #
-                #         if path is not None and len(path) > 0:
-                #             paths[agent] = [] + path
-                #         else:
-                #             success = False
-                #             break
-                #
-                #     if success:
-                #         new_child_node['paths'] = copy.deepcopy(paths)
-                #         new_child_node['collisions'] = detect_collisions(new_child_node['paths'])
-                #         new_child_node['cost'] = get_sum_of_cost(new_child_node['paths'])
-                #         self.push_node(new_child_node)
-                #
-                # else:
 
                 agent_in_constraint = constraint['agent']
                 # Update child solution by invoking low level search
