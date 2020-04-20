@@ -56,16 +56,12 @@ def detect_collisions(paths):
     return collisions
 
 
-def a_star_mdd(my_map, start_loc, goal_loc, agent, depth):
+def a_star_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
     """ my_map      - binary obstacle map
         start_loc   - start position
         goal_loc    - goal position
         agent       - the agent that is being re-planned
     """
-  
-    def get_move(loc, dir):
-        directions = [(0, -1), (1, 0), (0, 1), (-1, 0)]
-        return loc[0] + directions[dir][0], loc[1] + directions[dir][1]
     
     def manhattan_dist(node, goal):
         """ Compute Manhattan distance """
@@ -80,9 +76,12 @@ def a_star_mdd(my_map, start_loc, goal_loc, agent, depth):
     closed_list = dict()
     graph = dict()
 
+    constraint_table = build_constraint_table(constraints, agent)
+    # print(constraint_table)
+
     h_value = manhattan_dist(start_loc, goal_loc)
     root = {'loc': start_loc, 'g_val': 0, 'h_val': h_value, 'timestep': 0, 'parent': None}
-    graph[root['timestep']] = root['loc']
+    graph[root['timestep']] = [root['loc']]
     
     push_node(open_list, root)
     closed_list[(root['loc'], root['timestep'])] = root
@@ -93,8 +92,8 @@ def a_star_mdd(my_map, start_loc, goal_loc, agent, depth):
         if curr['loc'] == goal_loc:
             continue
 
-        for dir in range(4):
-            child_loc = get_move(curr['loc'], dir)
+        for dir in range(5):
+            child_loc = move(curr['loc'], dir)
             
             if (child_loc[0] >= len(my_map) or child_loc[0] == -1) or (child_loc[1] >= len(my_map[0]) or child_loc[1] == -1):
                 continue
@@ -102,12 +101,27 @@ def a_star_mdd(my_map, start_loc, goal_loc, agent, depth):
             if my_map[child_loc[0]][child_loc[1]]:
                 continue
             
+            if is_constrained(curr['loc'], child_loc, curr['timestep'] + 1, constraint_table):
+                # If child node is constrained, remove parent from graph
+                try:
+                    # Make sure parent is not shared by another node before deleting
+                    shared = False
+                    if len(graph[curr['timestep'] + 1]) > 0:
+                        for key, value in graph.items():
+                            if value[0] == curr['loc']:
+                                shared = True
+                    if shared is not True:
+                        graph[curr['timestep']].remove(curr['loc'])
+                except KeyError:
+                    graph[curr['timestep']].remove(curr['loc'])
+                continue
+            
             child = {'loc': child_loc,
                      'g_val': curr['g_val'] + 1,
                      'h_val': manhattan_dist(child_loc, goal_loc),
                      'parent': curr,
                      'timestep': curr['timestep'] + 1}
-
+            
             if (child['loc'], child['timestep']) in closed_list:
                 if child['h_val'] < curr['h_val']:
                     existing_node = closed_list[(child['loc'], child['timestep'])]
@@ -136,7 +150,7 @@ def a_star_mdd(my_map, start_loc, goal_loc, agent, depth):
 
 
 def build_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
-    graph = a_star_mdd(my_map, start_loc, goal_loc, agent, depth)
+    graph = a_star_mdd(my_map, start_loc, goal_loc, agent, constraints, depth)
     print("Agent:", agent)
     print("Graph:", graph)
     print()
