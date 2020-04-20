@@ -91,7 +91,7 @@ def a_star_mdd(my_map, start_loc, goal_loc, agent, depth):
         curr = pop_node(open_list)
 
         if curr['loc'] == goal_loc:
-            return graph
+            continue
 
         for dir in range(4):
             child_loc = get_move(curr['loc'], dir)
@@ -107,28 +107,32 @@ def a_star_mdd(my_map, start_loc, goal_loc, agent, depth):
                      'h_val': manhattan_dist(child_loc, goal_loc),
                      'parent': curr,
                      'timestep': curr['timestep'] + 1}
-            
-            if child['g_val'] > depth:
-                continue
 
             if (child['loc'], child['timestep']) in closed_list:
-                existing_node = closed_list[(child['loc'], child['timestep'])]
-                if compare_nodes(child, existing_node):
+                if child['h_val'] < curr['h_val']:
+                    existing_node = closed_list[(child['loc'], child['timestep'])]
+                    if compare_nodes(child, existing_node):
+                        closed_list[(child['loc'], child['timestep'])] = child
+                        push_node(open_list, child)
+                    if child['timestep'] not in graph:
+                        graph[child['timestep']] = [child['loc']]
+                    else:
+                        if child['loc'] not in graph[child['timestep']]:
+                            graph[child['timestep']].append(child['loc'])
+            else:
+                if child['h_val'] < curr['h_val']:
                     closed_list[(child['loc'], child['timestep'])] = child
                     push_node(open_list, child)
+                    if child['timestep'] not in graph:
+                        graph[child['timestep']] = [child['loc']]
+                    else:
+                        if child['loc'] not in graph[child['timestep']]:
+                            graph[child['timestep']].append(child['loc'])
 
-                    if child['h_val'] <= curr['h_val']:
-                        graph.setdefault(child['timestep'], [])
-                        graph[child['timestep']].append(child['loc'])
-            else:
-                closed_list[(child['loc'], child['timestep'])] = child
-                push_node(open_list, child)
-
-                if child['h_val'] <= curr['h_val']:
-                    graph.setdefault(child['timestep'], [])
-                    graph[child['timestep']].append(child['loc'])
-
-    return None
+    if len(graph) > 0:
+        return graph
+    else:
+        return None
 
 
 def build_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
