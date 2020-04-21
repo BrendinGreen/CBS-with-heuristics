@@ -151,10 +151,8 @@ def a_star_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
 
 def build_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
     graph = a_star_mdd(my_map, start_loc, goal_loc, agent, constraints, depth)
-    print("Agent:", agent)
-    print("Graph:", graph)
-    print()
-    return graph
+    mdd = {'agent': agent, 'mdd': graph}
+    return mdd
 
 
 def detect_cardinal_conflict(mdd1, mdd2):
