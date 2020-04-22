@@ -1,9 +1,8 @@
 import time as timer
-import heapq
-import random
 import os
 import psutil
 from single_agent_planner import *
+from conflict_graph import *
 
 
 def get_agent_cost(paths):
@@ -12,13 +11,29 @@ def get_agent_cost(paths):
         rst.append(len(path) - 1)
     return rst
 
+
+def compute_cg_heuristic(my_map, start, goal, num_agents, node):
+
+    mdds = []
+
+    for agent in range(num_agents):
+        mdds.append(build_mdd(my_map, start[agent], goal[agent], agent, node['constraints'], node['agent_cost'][agent]))
+
+    conflict_graph = construct_conflict_graph(num_agents, mdds)
+
+    print(conflict_graph)
+
+    hval = mvc(conflict_graph)
+
+    print("h_val: {}".format(hval))
+
+    if hval is None:
+        return 0
+
+    return hval
+
+
 def detect_collision(path1, path2):
-    ##############################
-    # Task 3.1: Return the first collision that occurs between two robot paths (or None if there is no collision)
-    #           There are two types of collisions: vertex collision and edge collision.
-    #           A vertex collision occurs if both robots occupy the same location at the same timestep
-    #           An edge collision occurs if the robots swap their location at the same timestep.
-    #           You should use "get_location(path, t)" to get the location of a robot at time t.
 
     longest_path_length = max(len(path1), len(path2))
 
@@ -38,11 +53,6 @@ def detect_collision(path1, path2):
 
 
 def detect_collisions(paths):
-    ##############################
-    # Task 3.1: Return a list of first collisions between all robot pairs.
-    #           A collision can be represented as dictionary that contains the id of the two robots, the vertex or edge
-    #           causing the collision, and the timestep at which the collision occurred.
-    #           You should use your detect_collision function to find a collision between two robots.
 
     collisions = []
 
@@ -174,8 +184,6 @@ def detect_cardinal_conflict(mdd1, mdd2):
             if mdd1_graph[timestep][0] == mdd2_graph[timestep][0]:
                 conflict['loc'] = [mdd1_graph[timestep][0]]
                 conflict['timestep'] = timestep
-                # if conflict in collisions:
-                #     print("FOUND")
                 return conflict
 
     # Second, look for semi-cardinal conflicts
@@ -199,14 +207,6 @@ def detect_cardinal_conflict(mdd1, mdd2):
 
 
 def standard_splitting(collision):
-    ##############################
-    # Task 3.2: Return a list of (two) constraints to resolve the given collision
-    #           Vertex collision: the first constraint prevents the first agent to be at the specified location at the
-    #                            specified timestep, and the second constraint prevents the second agent to be at the
-    #                            specified location at the specified timestep.
-    #           Edge collision: the first constraint prevents the first agent to traverse the specified edge at the
-    #                          specified timestep, and the second constraint prevents the second agent to traverse the
-    #                          specified edge at the specified timestep
 
     first_constraint = {'agent': collision['a1'],
                         'loc': collision['loc'],
@@ -220,37 +220,6 @@ def standard_splitting(collision):
 
     return [first_constraint, second_constraint]
 
-
-def disjoint_splitting(collision):
-    ##############################
-    # Task 4.1: Return a list of (two) constraints to resolve the given collision
-    #           Vertex collision: the first constraint enforces one agent to be at the specified location at the
-    #                            specified timestep, and the second constraint prevents the same agent to be at the
-    #                            same location at the timestep.
-    #           Edge collision: the first constraint enforces one agent to traverse the specified edge at the
-    #                          specified timestep, and the second constraint prevents the same agent to traverse the
-    #                          specified edge at the specified timestep
-    #           Choose the agent randomly
-
-    agent_to_constrain = random.randint(1, 2)
-
-    first_constraint = {'agent': collision['a{}'.format(agent_to_constrain)],
-                        'loc': collision['loc'],
-                        'timestep': collision['timestep'],
-                        'positive': True}
-
-    second_constraint = {'agent': collision['a{}'.format(agent_to_constrain)],
-                         'loc': collision['loc'],
-                         'timestep': collision['timestep'],
-                         'positive': False}
-
-    return [first_constraint, second_constraint]
-
-
-#
-# Please insert this function into "cbs.py" before "class CBSSolver"
-# is defined.
-#
 
 def paths_violate_constraint(constraint, paths):
     assert constraint['positive'] is True
@@ -295,22 +264,25 @@ class ICBSSolver(object):
         for goal in self.goals:
             self.heuristics.append(compute_heuristics(my_map, goal))
 
-    def push_node(self, node):
-        heapq.heappush(self.open_list, (node['cost'], len(node['collisions']), self.num_of_generated, node))
-        # print("Generate node {}".format(self.num_of_generated))
+    def push_node(self, node, conflict):
+        if not conflict:
+            heapq.heappush(self.open_list, (node['cost'], len(node['collisions']), self.num_of_generated, node))
+        else:
+            heapq.heappush(self.open_list, (node['h_val'], len(node['collisions']), self.num_of_generated, node))
         self.num_of_generated += 1
 
     def pop_node(self):
         _, _, id, node = heapq.heappop(self.open_list)
-        # print("Expand node {}".format(id))
         self.num_of_expanded += 1
         return node
 
-    def find_solution(self, disjoint=True):
+    def find_solution(self, conflict_graph=False):
         """ Finds paths for all agents from their start locations to their goal locations
 
         disjoint    - use disjoint splitting or not
         """
+
+        print("Conflict: {}".format(conflict_graph))
 
         self.start_time = timer.time()
 
@@ -341,17 +313,9 @@ class ICBSSolver(object):
         root['cost'] = get_sum_of_cost(root['paths'])
         root['agent_cost'] = get_agent_cost(root['paths'])
         root['collisions'] = detect_collisions(root['paths'])
-        self.push_node(root)
-
-
-        ##############################
-        # Task 3.3: High-Level Search
-        #           Repeat the following as long as the open list is not empty:
-        #             1. Get the next node from the open list (you can use self.pop_node()
-        #             2. If this node has no collision, return solution
-        #             3. Otherwise, choose the first collision and convert to a list of constraints (using your
-        #                standard_splitting function). Add a new child node to your open list for each constraint
-        #           Ensure to create a copy of any objects that your child nodes might inherit
+        if conflict_graph:
+            root['h_val'] = compute_cg_heuristic(self.my_map, self.starts, self.goals, self.num_of_agents, root)
+        self.push_node(root, conflict_graph)
 
         while len(self.open_list) > 0:
             # Get best node N from OPEN (lowest solution cost)
@@ -397,7 +361,9 @@ class ICBSSolver(object):
                     new_child_node['collisions'] = detect_collisions(new_child_node['paths'])
                     new_child_node['cost'] = get_sum_of_cost(new_child_node['paths'])
                     new_child_node['agent_cost'] = get_agent_cost(new_child_node['paths'])
-                    self.push_node(new_child_node)
+                    if conflict_graph:
+                        new_child_node['h_val'] = compute_cg_heuristic(self.my_map, self.starts, self.goals, self.num_of_agents, new_child_node)
+                    self.push_node(new_child_node, conflict_graph)
 
         self.print_results(root)
         return None

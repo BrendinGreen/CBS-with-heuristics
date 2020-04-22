@@ -1,18 +1,11 @@
 import time as timer
 import heapq
-import random
 import os
 import psutil
 from single_agent_planner import compute_heuristics, a_star, get_location, get_sum_of_cost
 
 
 def detect_collision(path1, path2):
-    ##############################
-    # Task 3.1: Return the first collision that occurs between two robot paths (or None if there is no collision)
-    #           There are two types of collisions: vertex collision and edge collision.
-    #           A vertex collision occurs if both robots occupy the same location at the same timestep
-    #           An edge collision occurs if the robots swap their location at the same timestep.
-    #           You should use "get_location(path, t)" to get the location of a robot at time t.
 
     longest_path_length = max(len(path1), len(path2))
 
@@ -32,11 +25,6 @@ def detect_collision(path1, path2):
 
 
 def detect_collisions(paths):
-    ##############################
-    # Task 3.1: Return a list of first collisions between all robot pairs.
-    #           A collision can be represented as dictionary that contains the id of the two robots, the vertex or edge
-    #           causing the collision, and the timestep at which the collision occurred.
-    #           You should use your detect_collision function to find a collision between two robots.
 
     collisions = []
 
@@ -53,14 +41,6 @@ def detect_collisions(paths):
 
 
 def standard_splitting(collision):
-    ##############################
-    # Task 3.2: Return a list of (two) constraints to resolve the given collision
-    #           Vertex collision: the first constraint prevents the first agent to be at the specified location at the
-    #                            specified timestep, and the second constraint prevents the second agent to be at the
-    #                            specified location at the specified timestep.
-    #           Edge collision: the first constraint prevents the first agent to traverse the specified edge at the
-    #                          specified timestep, and the second constraint prevents the second agent to traverse the
-    #                          specified edge at the specified timestep
 
     first_constraint = {'agent': collision['a1'],
                         'loc': collision['loc'],
@@ -74,37 +54,6 @@ def standard_splitting(collision):
 
     return [first_constraint, second_constraint]
 
-
-def disjoint_splitting(collision):
-    ##############################
-    # Task 4.1: Return a list of (two) constraints to resolve the given collision
-    #           Vertex collision: the first constraint enforces one agent to be at the specified location at the
-    #                            specified timestep, and the second constraint prevents the same agent to be at the
-    #                            same location at the timestep.
-    #           Edge collision: the first constraint enforces one agent to traverse the specified edge at the
-    #                          specified timestep, and the second constraint prevents the same agent to traverse the
-    #                          specified edge at the specified timestep
-    #           Choose the agent randomly
-
-    agent_to_constrain = random.randint(1, 2)
-
-    first_constraint = {'agent': collision['a{}'.format(agent_to_constrain)],
-                        'loc': collision['loc'],
-                        'timestep': collision['timestep'],
-                        'positive': True}
-
-    second_constraint = {'agent': collision['a{}'.format(agent_to_constrain)],
-                         'loc': collision['loc'],
-                         'timestep': collision['timestep'],
-                         'positive': False}
-
-    return [first_constraint, second_constraint]
-
-
-#
-# Please insert this function into "cbs.py" before "class CBSSolver"
-# is defined.
-#
 
 def paths_violate_constraint(constraint, paths):
     assert constraint['positive'] is True
@@ -160,7 +109,7 @@ class CBSSolver(object):
         self.num_of_expanded += 1
         return node
 
-    def find_solution(self, disjoint=True):
+    def find_solution(self):
         """ Finds paths for all agents from their start locations to their goal locations
 
         disjoint    - use disjoint splitting or not
@@ -193,84 +142,18 @@ class CBSSolver(object):
         root['collisions'] = detect_collisions(root['paths'])
         self.push_node(root)
 
-        # Task 3.1: Testing
-        # print(root['collisions'])
-
-        # Task 3.2: Testing
-        # for collision in root['collisions']:
-        #     print(standard_splitting(collision))
-
-        ##############################
-        # Task 3.3: High-Level Search
-        #           Repeat the following as long as the open list is not empty:
-        #             1. Get the next node from the open list (you can use self.pop_node()
-        #             2. If this node has no collision, return solution
-        #             3. Otherwise, choose the first collision and convert to a list of constraints (using your
-        #                standard_splitting function). Add a new child node to your open list for each constraint
-        #           Ensure to create a copy of any objects that your child nodes might inherit
-
-        # while len(self.open_list) > 0:
-        #     next_node = self.pop_node()
-        #     if len(next_node['collisions']) == 0:
-        #         return next_node['paths']
-        #     collision = next_node['collisions'][0]
-        #     constraints = standard_splitting(collision)
-        #
-        #     for constraint in constraints:
-        #         new_child_node = dict()
-        #         new_child_node['constraints'] = [constraint] + next_node['constraints']
-        #         new_child_node['paths'] = copy.deepcopy(next_node['paths'])
-        #         agent_in_constraint = constraint['agent']
-        #         path = a_star(self.my_map,
-        #                       self.starts[agent_in_constraint],
-        #                       self.goals[agent_in_constraint],
-        #                       self.heuristics[agent_in_constraint],
-        #                       agent_in_constraint,
-        #                       new_child_node['constraints'])
-        #         if len(path) > 0:
-        #             new_child_node['paths'][agent_in_constraint] = copy.deepcopy(path)
-        #             new_child_node['collisions'] = detect_collisions(new_child_node['paths'])
-        #             new_child_node['cost'] = get_sum_of_cost(new_child_node['paths'])
-        #             self.push_node(new_child_node)
-
         while len(self.open_list) > 0:
             next_node = self.pop_node()
             if len(next_node['collisions']) == 0:
                 self.print_results(next_node)
                 return next_node['paths']
             collision = next_node['collisions'][0]
-            constraints = standard_splitting(collision)  # disjoint_splitting(collision)
+            constraints = standard_splitting(collision)
 
             for constraint in constraints:
                 new_child_node = dict()
                 new_child_node['constraints'] = [constraint] + next_node['constraints']
                 new_child_node['paths'] = [] + next_node['paths']
-
-                # if constraint['positive']:
-                #     agents_that_conflict = paths_violate_constraint(constraint, new_child_node['paths'])
-                #     paths = copy.deepcopy(new_child_node['paths'])
-                #     success = True
-                #     for agent in agents_that_conflict:
-                #         path = a_star(self.my_map,
-                #                       self.starts[agent],
-                #                       self.goals[agent],
-                #                       self.heuristics[agent],
-                #                       agent,
-                #                       new_child_node['constraints'])
-                #
-                #         if path is not None and len(path) > 0:
-                #             paths[agent] = [] + path
-                #         else:
-                #             success = False
-                #             break
-                #
-                #     if success:
-                #         new_child_node['paths'] = copy.deepcopy(paths)
-                #         new_child_node['collisions'] = detect_collisions(new_child_node['paths'])
-                #         new_child_node['cost'] = get_sum_of_cost(new_child_node['paths'])
-                #         self.push_node(new_child_node)
-                #
-                # else:
 
                 agent_in_constraint = constraint['agent']
                 path = a_star(self.my_map,
@@ -290,7 +173,6 @@ class CBSSolver(object):
         return None
 
     def print_results(self, node):
-
         print("\n Found a solution! \n")
         CPU_time = timer.time() - self.start_time
         process = psutil.Process(os.getpid())

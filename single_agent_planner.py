@@ -1,10 +1,8 @@
 import heapq
-import copy
+
 
 def move(loc, dir):
-    if dir == 4:
-        return loc
-    directions = [(0, -1), (1, 0), (0, 1), (-1, 0)]
+    directions = [(0, -1), (1, 0), (0, 1), (-1, 0), (0, 0)]
     return loc[0] + directions[dir][0], loc[1] + directions[dir][1]
 
 
@@ -51,11 +49,6 @@ def compute_heuristics(my_map, goal):
 
 
 def build_constraint_table(constraints, agent):
-    ##############################
-    # Task 1.2/1.3: Return a table that constains the list of constraints of
-    #               the given agent for each time step. The table can be used
-    #               for a more efficient constraint violation check in the 
-    #               is_constrained function.
 
     table = dict()
 
@@ -68,17 +61,6 @@ def build_constraint_table(constraints, agent):
                 table[timestep].append(constraint)
             else:
                 table[timestep] = [constraint]
-
-        # covers other agent's positive constraints
-        # if constraint['positive'] and constraint['agent'] != agent:
-        #     new_negative_constraint = {'agent': agent,
-        #                                'loc': constraint['loc'],
-        #                                'positive': False,
-        #                                'timestep': timestep}
-        #     if timestep in table:
-        #         table[timestep].append(new_negative_constraint)
-        #     else:
-        #         table[timestep] = [new_negative_constraint]
 
     return table
 
@@ -103,28 +85,11 @@ def get_path(goal_node):
 
 
 def is_constrained(curr_loc, next_loc, next_time, constraint_table):
-    ##############################
-    # Task 1.2/1.3: Check if a move from curr_loc to next_loc at time step next_time violates
-    #               any given constraint. For efficiency the constraints are indexed in a constraint_table
-    #               by time step, see build_constraint_table.
-
 
     if next_time not in constraint_table:
         return False
 
     timestep_constraints = constraint_table[next_time]  # array of constraints
-
-    # for constraint in timestep_constraints:
-    #     if constraint['positive']:
-    #         location = constraint['loc']
-    #
-    #         if [next_loc] == location:
-    #             return False
-    #
-    #         if ([curr_loc, next_loc] == location) or ([next_loc, curr_loc] == location):
-    #             return False
-    #
-    #         return True
 
     for constraint in timestep_constraints:
         if not constraint['positive']:
@@ -161,24 +126,20 @@ def a_star(my_map, start_loc, goal_loc, h_values, agent, constraints):
         constraints - constraints defining where robot should or cannot go at each timestep
     """
 
-    ##############################
-    # Task 1.1: Extend the A* search to search in the space-time domain
-    #           rather than space domain, only.
-
     open_list = []
     closed_list = dict()
-    earliest_goal_timestep = 0
     h_value = h_values[start_loc]
     constraint_table = build_constraint_table(constraints, agent)
     root = {'loc': start_loc, 'g_val': 0, 'h_val': h_value, 'parent': None, 'timestep': 0}
     push_node(open_list, root)
     closed_list[(root['loc'], root['timestep'])] = root
+
     while len(open_list) > 0:
+
         curr = pop_node(open_list)
         if curr['timestep'] > len(my_map[0])*len(my_map):
             return None
-        #############################
-        # Task 1.4: Adjust the goal test condition to handle goal constraints
+
         if curr['loc'] == goal_loc:
             future_constraint_count = 0
             for constraint in constraints:
@@ -189,10 +150,13 @@ def a_star(my_map, start_loc, goal_loc, h_values, agent, constraints):
 
         for dir in range(5):
             child_loc = move(curr['loc'], dir)
+
             if (child_loc[0] >= len(my_map) or child_loc[0] == -1) or (child_loc[1] >= len(my_map[0]) or child_loc[1] == -1):
                 continue
+
             if my_map[child_loc[0]][child_loc[1]]:
                 continue
+
             child = {'loc': child_loc,
                      'g_val': curr['g_val'] + 1,
                      'h_val': h_values[child_loc],
