@@ -153,12 +153,46 @@ def build_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
     return mdd
 
 
-def detect_cardinal_conflict(mdd1, mdd2):
-    # Check MDDs for a cardinal conflict
+def detect_cardinal_conflict(mdd1, mdd2, collisions):
 
-    # If no cardinal conflict is found, choose a semi-cardinal conflict
-    # if it was encountered during the iteration
+    mdd1_graph = mdd1['mdd']
+    mdd2_graph = mdd2['mdd']
 
+    conflict = {'a1': mdd1['agent'],
+                'a2': mdd2['agent']}
+
+    # print(mdd1_graph)
+    # print(mdd2_graph)
+
+    min_path_length = min(len(mdd1_graph.keys()), len(mdd2_graph.keys()))
+
+    # First look for cardinal conflicts
+    for timestep in range(min_path_length):
+        if len(mdd1_graph[timestep]) == 1 and len(mdd2_graph[timestep]) == 1:
+            if mdd1_graph[timestep][0] == mdd2_graph[timestep][0]:
+                conflict['loc'] = [mdd1_graph[timestep][0]]
+                conflict['timestep'] = timestep
+                # if conflict in collisions:
+                #     print("FOUND")
+                return conflict
+
+    # Second, look for semi-cardinal conflicts
+    for timestep in range(min_path_length):
+        if len(mdd1_graph[timestep]) == 1 and len(mdd2_graph[timestep]) > 1:
+            for loc in mdd2_graph[timestep]:
+                if mdd1_graph[timestep][0] == loc:
+                    conflict['loc'] = [loc]
+                    conflict['timestep'] = timestep
+                    return conflict
+
+        if len(mdd1_graph[timestep]) > 1 and len(mdd2_graph[timestep]) == 1:
+            for loc in mdd1_graph[timestep]:
+                if mdd2_graph[timestep][0] == loc:
+                    conflict['loc'] = [loc]
+                    conflict['timestep'] = timestep
+                    return conflict
+
+    # no cardinal, or semi-cardinal found
     return None
 
 
