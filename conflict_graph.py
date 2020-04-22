@@ -22,3 +22,13 @@ def k_vertex_cover(g, k):
     g2.remove_node(v[1])
     # recursively check if either g1 or g2 have vertex cover of k-1
     return k_vertex_cover(g1, k-1) or k_vertex_cover(g2, k-1)
+
+"""
+G = nx.Graph()
+
+G.add_edges_from([(1, 2), (5, 6), (5, 7), (6, 7)])
+
+print(G.nodes())
+
+print(mvc(G))
+"""
