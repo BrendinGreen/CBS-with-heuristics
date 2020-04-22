@@ -1,7 +1,8 @@
 import time as timer
 import heapq
 import random
-import copy
+import os
+import psutil
 from single_agent_planner import compute_heuristics, a_star, get_location, get_sum_of_cost
 
 
@@ -150,12 +151,12 @@ class CBSSolver(object):
 
     def push_node(self, node):
         heapq.heappush(self.open_list, (node['cost'], len(node['collisions']), self.num_of_generated, node))
-        print("Generate node {}".format(self.num_of_generated))
+        # print("Generate node {}".format(self.num_of_generated))
         self.num_of_generated += 1
 
     def pop_node(self):
         _, _, id, node = heapq.heappop(self.open_list)
-        print("Expand node {}".format(id))
+        # print("Expand node {}".format(id))
         self.num_of_expanded += 1
         return node
 
@@ -193,11 +194,11 @@ class CBSSolver(object):
         self.push_node(root)
 
         # Task 3.1: Testing
-        print(root['collisions'])
+        # print(root['collisions'])
 
         # Task 3.2: Testing
-        for collision in root['collisions']:
-            print(standard_splitting(collision))
+        # for collision in root['collisions']:
+        #     print(standard_splitting(collision))
 
         ##############################
         # Task 3.3: High-Level Search
@@ -235,6 +236,7 @@ class CBSSolver(object):
         while len(self.open_list) > 0:
             next_node = self.pop_node()
             if len(next_node['collisions']) == 0:
+                self.print_results(next_node)
                 return next_node['paths']
             collision = next_node['collisions'][0]
             constraints = standard_splitting(collision)  # disjoint_splitting(collision)
@@ -288,8 +290,11 @@ class CBSSolver(object):
         return None
 
     def print_results(self, node):
+
         print("\n Found a solution! \n")
         CPU_time = timer.time() - self.start_time
+        process = psutil.Process(os.getpid())
+        print("Memory usage:    {} mb".format(process.memory_info().rss / 1000000))
         print("CPU time (s):    {:.2f}".format(CPU_time))
         print("Sum of costs:    {}".format(get_sum_of_cost(node['paths'])))
         print("Expanded nodes:  {}".format(self.num_of_expanded))

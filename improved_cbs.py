@@ -1,6 +1,8 @@
 import time as timer
 import heapq
 import random
+import os
+import psutil
 from single_agent_planner import *
 
 
@@ -153,7 +155,7 @@ def build_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
     return mdd
 
 
-def detect_cardinal_conflict(mdd1, mdd2, collisions):
+def detect_cardinal_conflict(mdd1, mdd2):
 
     mdd1_graph = mdd1['mdd']
     mdd2_graph = mdd2['mdd']
@@ -403,6 +405,8 @@ class ICBSSolver(object):
     def print_results(self, node):
         print("\n Found a solution! \n")
         CPU_time = timer.time() - self.start_time
+        process = psutil.Process(os.getpid())
+        print("Memory usage:    {} mb".format(process.memory_info().rss / 1000000))
         print("CPU time (s):    {:.2f}".format(CPU_time))
         print("Sum of costs:    {}".format(get_sum_of_cost(node['paths'])))
         print("Expanded nodes:  {}".format(self.num_of_expanded))
