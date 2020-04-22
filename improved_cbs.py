@@ -77,7 +77,6 @@ def a_star_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
     graph = dict()
 
     constraint_table = build_constraint_table(constraints, agent)
-    # print(constraint_table)
 
     h_value = manhattan_dist(start_loc, goal_loc)
     root = {'loc': start_loc, 'g_val': 0, 'h_val': h_value, 'timestep': 0, 'parent': None}
@@ -101,20 +100,19 @@ def a_star_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
             if my_map[child_loc[0]][child_loc[1]]:
                 continue
             
+            # If child node is constrained, do not generate node and remove its parent from graph
             if is_constrained(curr['loc'], child_loc, curr['timestep'] + 1, constraint_table):
-                # If child node is constrained, remove parent from graph
                 try:
-                    # Make sure parent is not shared by another node before deleting
-                    shared = False
-                    if len(graph[curr['timestep'] + 1]) > 0:
-                        for key, value in graph.items():
-                            if value[0] == curr['loc']:
-                                shared = True
-                    if shared is not True:
-                        graph[curr['timestep']].remove(curr['loc'])
+                    # If the parent is shared by another node, do not remove
+                    sibling = graph[curr['timestep'] + 1]
+                    continue
+                # Otherwise, remove parent
                 except KeyError:
-                    graph[curr['timestep']].remove(curr['loc'])
-                continue
+                    try:
+                        graph[curr['timestep']].remove(curr['loc'])
+                        continue
+                    except:
+                        continue
             
             child = {'loc': child_loc,
                      'g_val': curr['g_val'] + 1,
@@ -333,12 +331,7 @@ class ICBSSolver(object):
                 a2 = conflict['a2']
                 mdd1 = build_mdd(self.my_map, self.starts[a1], self.goals[a1], a1, next_node['constraints'], next_node['agent_cost'][a1])
                 mdd2 = build_mdd(self.my_map, self.starts[a2], self.goals[a2], a2, next_node['constraints'], next_node['agent_cost'][a2])
-                # print('Agent:', a1)
-                # print('MDD:', mdd1)
-                # print()
-                # print('Agent:', a2)
-                # print('MDD:', mdd2)
-                # print()
+
                 # Check for cardinal/semi-cardinal conflict
                 cardinal_conflict = detect_cardinal_conflict(mdd1, mdd2)
             
