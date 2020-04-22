@@ -123,7 +123,7 @@ def a_star_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
                      'timestep': curr['timestep'] + 1}
             
             if (child['loc'], child['timestep']) in closed_list:
-                if child['h_val'] < curr['h_val']:
+                if child['g_val'] + child['h_val'] <= depth:
                     existing_node = closed_list[(child['loc'], child['timestep'])]
                     if compare_nodes(child, existing_node):
                         closed_list[(child['loc'], child['timestep'])] = child
@@ -134,7 +134,7 @@ def a_star_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
                         if child['loc'] not in graph[child['timestep']]:
                             graph[child['timestep']].append(child['loc'])
             else:
-                if child['h_val'] < curr['h_val']:
+                if child['g_val'] + child['h_val'] <= depth:
                     closed_list[(child['loc'], child['timestep'])] = child
                     push_node(open_list, child)
                     if child['timestep'] not in graph:
