@@ -76,7 +76,7 @@ def paths_violate_constraint(constraint, paths):
 class CBSSolver(object):
     """The high-level search of CBS."""
 
-    def __init__(self, my_map, starts, goals):
+    def __init__(self, my_map, starts, goals, instance):
         """my_map   - list of lists specifying obstacle positions
         starts      - [(x1, y1), (x2, y2), ...] list of start locations
         goals       - [(x1, y1), (x2, y2), ...] list of goal locations
@@ -90,6 +90,7 @@ class CBSSolver(object):
         self.num_of_generated = 0
         self.num_of_expanded = 0
         self.CPU_time = 0
+        self.instance = instance
 
         self.open_list = []
 
@@ -173,11 +174,18 @@ class CBSSolver(object):
         return None
 
     def print_results(self, node):
-        print("\n Found a solution! \n")
         CPU_time = timer.time() - self.start_time
         process = psutil.Process(os.getpid())
-        print("Memory usage:    {} mb".format(process.memory_info().rss / 1000000))
+        memory = process.memory_info().rss / 1000000
+        cost = get_sum_of_cost(node['paths'])
+
+        print("\n Found a solution! \n")
+        print("Memory usage:    {} mb".format(memory))
         print("CPU time (s):    {:.2f}".format(CPU_time))
-        print("Sum of costs:    {}".format(get_sum_of_cost(node['paths'])))
+        print("Sum of costs:    {}".format(cost))
         print("Expanded nodes:  {}".format(self.num_of_expanded))
         print("Generated nodes: {}".format(self.num_of_generated))
+        
+        # Write results to file
+        with open("results.csv", "a", buffering=1) as result_file:
+            result_file.write("{},{},{},{},{},{}\n".format(self.instance, CPU_time, memory, cost, self.num_of_expanded, self.num_of_generated))

@@ -21,11 +21,11 @@ def compute_cg_heuristic(my_map, start, goal, num_agents, node):
 
     conflict_graph = construct_conflict_graph(num_agents, mdds)
 
-    print(conflict_graph)
+    # print(conflict_graph)
 
     hval = mvc(conflict_graph)
 
-    print("h_val: {}".format(hval))
+    # print("h_val: {}".format(hval))
 
     if hval is None:
         return 0
@@ -68,7 +68,7 @@ def detect_collisions(paths):
     return collisions
 
 
-def a_star_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
+def build_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
     """ my_map      - binary obstacle map
         start_loc   - start position
         goal_loc    - goal position
@@ -154,15 +154,9 @@ def a_star_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
                             graph[child['timestep']].append(child['loc'])
 
     if len(graph) > 0:
-        return graph
+        return {'agent': agent, 'mdd': graph}
     else:
         return None
-
-
-def build_mdd(my_map, start_loc, goal_loc, agent, constraints, depth):
-    graph = a_star_mdd(my_map, start_loc, goal_loc, agent, constraints, depth)
-    mdd = {'agent': agent, 'mdd': graph}
-    return mdd
 
 
 def detect_cardinal_conflict(mdd1, mdd2):
@@ -242,7 +236,7 @@ def paths_violate_constraint(constraint, paths):
 class ICBSSolver(object):
     """The high-level search of Improved CBS."""
 
-    def __init__(self, my_map, starts, goals):
+    def __init__(self, my_map, starts, goals, instance):
         """my_map   - list of lists specifying obstacle positions
         starts      - [(x1, y1), (x2, y2), ...] list of start locations
         goals       - [(x1, y1), (x2, y2), ...] list of goal locations
@@ -256,6 +250,7 @@ class ICBSSolver(object):
         self.num_of_generated = 0
         self.num_of_expanded = 0
         self.CPU_time = 0
+        self.instance = instance
 
         self.open_list = []
 
@@ -282,7 +277,7 @@ class ICBSSolver(object):
         disjoint    - use disjoint splitting or not
         """
 
-        print("Conflict: {}".format(conflict_graph))
+        # print("Conflict: {}".format(conflict_graph))
 
         self.start_time = timer.time()
 
@@ -369,11 +364,18 @@ class ICBSSolver(object):
         return None
 
     def print_results(self, node):
-        print("\n Found a solution! \n")
         CPU_time = timer.time() - self.start_time
         process = psutil.Process(os.getpid())
-        print("Memory usage:    {} mb".format(process.memory_info().rss / 1000000))
+        memory = process.memory_info().rss / 1000000
+        cost = get_sum_of_cost(node['paths'])
+
+        print("\n Found a solution! \n")
+        print("Memory usage:    {} mb".format(memory))
         print("CPU time (s):    {:.2f}".format(CPU_time))
-        print("Sum of costs:    {}".format(get_sum_of_cost(node['paths'])))
+        print("Sum of costs:    {}".format(cost))
         print("Expanded nodes:  {}".format(self.num_of_expanded))
         print("Generated nodes: {}".format(self.num_of_generated))
+        
+        # Write results to file
+        with open("results.csv", "a", buffering=1) as result_file:
+            result_file.write("{},{},{},{},{},{}\n".format(self.instance, CPU_time, memory, cost, self.num_of_expanded, self.num_of_generated))

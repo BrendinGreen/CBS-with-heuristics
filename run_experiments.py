@@ -82,7 +82,9 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    result_file = open("results.csv", "w", buffering=1)
+    # Write header to result file
+    with open("results.csv", "w", buffering=1) as result_file:
+        result_file.write("{},{},{},{},{},{}\n".format("Instance", "CPU time", "Memory Usage", "Sum of Costs", "Expanded Nodes", "Generated Nodes"))
 
     for file in sorted(glob.glob(args.instance)):
 
@@ -92,21 +94,18 @@ if __name__ == '__main__':
 
         if args.solver == "CBS":
             print("***Run CBS***")
-            cbs = CBSSolver(my_map, starts, goals)
+            cbs = CBSSolver(my_map, starts, goals, file)
             paths = cbs.find_solution()
         elif args.solver == "ICBS":
             print("***Run Improved CBS***")
-            icbs = ICBSSolver(my_map, starts, goals)
+            icbs = ICBSSolver(my_map, starts, goals, file)
             paths = icbs.find_solution()
         elif args.solver == "Conflict":
             print("***Run Conflict Graph Improved CBS***")
-            icbs = ICBSSolver(my_map, starts, goals)
+            icbs = ICBSSolver(my_map, starts, goals, file)
             paths = icbs.find_solution(True)
         else:
             raise RuntimeError("Unknown solver!")
-
-        cost = get_sum_of_cost(paths)
-        result_file.write("{},{}\n".format(file, cost))
 
 
         if not args.batch:
@@ -114,4 +113,3 @@ if __name__ == '__main__':
             animation = Animation(my_map, starts, goals, paths)
             # animation.save("output.mp4", 1.0)
             animation.show()
-    result_file.close()

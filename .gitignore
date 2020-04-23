@@ -2,3 +2,4 @@ results.csv
 .idea/*
 .vscode/*
 __pycache__/*
+venv/
