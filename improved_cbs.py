@@ -263,11 +263,14 @@ class ICBSSolver(object):
         if not conflict:
             heapq.heappush(self.open_list, (node['cost'], len(node['collisions']), self.num_of_generated, node))
         else:
-            heapq.heappush(self.open_list, (node['h_val'], len(node['collisions']), self.num_of_generated, node))
+            heapq.heappush(self.open_list, (node['h_val'], node['cost'], len(node['collisions']), self.num_of_generated, node))
         self.num_of_generated += 1
 
-    def pop_node(self):
-        _, _, id, node = heapq.heappop(self.open_list)
+    def pop_node(self, conflict):
+        if not conflict:
+            _, _, id, node = heapq.heappop(self.open_list)
+        else:
+            _, _, _, id, node = heapq.heappop(self.open_list)
         self.num_of_expanded += 1
         return node
 
@@ -314,7 +317,7 @@ class ICBSSolver(object):
 
         while len(self.open_list) > 0:
             # Get best node N from OPEN (lowest solution cost)
-            next_node = self.pop_node()
+            next_node = self.pop_node(conflict_graph)
             # If N has no conflicts then return solution (N is goal)
             if len(next_node['collisions']) == 0:
                 self.print_results(next_node)
